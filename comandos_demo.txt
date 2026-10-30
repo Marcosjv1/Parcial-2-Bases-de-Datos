@@ -1,0 +1,39 @@
+========================================
+COMANDOS PARA LA DEMO EN VIVO
+(copia y pega UNO POR UNO, en orden)
+========================================
+
+--- TERMINAL 1 (para dejarla corriendo el servidor, no la cierres) ---
+
+Paso A: Resetear los datos (deja los 25 asientos en "available")
+npm run seed
+
+Paso B: Levantar el servidor (debe decir "Connected to Redis Cloud" y "Server running on port 3000")
+npm start
+
+
+--- TERMINAL 2 (nueva, con el "+" de la terminal; aqui van los comandos de la demo) ---
+
+Paso 1: Ver los 25 asientos (todos deben decir "available")
+Invoke-RestMethod -Uri "http://localhost:3000/events/evt-001/seats"
+
+Paso 2: Bloquear un asiento (usa uno que no hayas tocado)
+Invoke-RestMethod -Uri "http://localhost:3000/events/evt-001/seats/A2-3/hold" -Method POST -ContentType "application/json" -Body '{"customerId":"cust-123"}'
+
+Paso 3: Revisar que quedo bloqueado (debe decir "held" y un numero en holdTtlSeconds)
+Invoke-RestMethod -Uri "http://localhost:3000/events/evt-001/seats/A2-3"
+
+Paso 4: Confirmar la reservacion (debe decir "confirmed")
+Invoke-RestMethod -Uri "http://localhost:3000/events/evt-001/seats/A2-3/confirm" -Method POST -ContentType "application/json" -Body '{"customerId":"cust-123"}'
+
+Paso 5 (opcional): Ver todos los asientos otra vez, A2-3 ahora dice "booked"
+Invoke-RestMethod -Uri "http://localhost:3000/events/evt-001/seats"
+
+
+========================================
+NOTA: Si quieres usar otro asiento en vez de A2-3, cambia esa parte
+en los pasos 2, 3 y 4 (las 3 veces) por cualquiera de estos:
+
+Seccion A: A1-1 A1-2 A1-3 A1-4 A1-5 A2-1 A2-2 A2-3 A2-4 A2-5 A3-1 A3-2 A3-3 A3-4 A3-5
+Seccion B: B1-1 B1-2 B1-3 B1-4 B1-5 B2-1 B2-2 B2-3 B2-4 B2-5
+========================================

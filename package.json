@@ -1,0 +1,15 @@
+{
+  "name": "nosql-parcial2-ticketing",
+  "version": "1.0.0",
+  "description": "Sistema de reservacion de boletos con bloqueo temporal de asientos (Redis Cloud - Clave-Valor)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "seed": "node src/seed.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "redis": "^4.7.0",
+    "dotenv": "^16.4.5"
+  }
+}
