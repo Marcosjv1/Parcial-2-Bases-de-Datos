@@ -10,7 +10,7 @@ Modelo NoSQL: **Clave-Valor**, sobre **Redis Cloud** (managed service).
 - Una base de datos Redis Cloud (free tier) ya creada
 - npm
 
-## Instalacion
+## Guia de instalacion
 
 ```bash
 npm install
@@ -26,7 +26,7 @@ npm run seed
 
 Esto crea el evento `evt-001` ("Concierto Rock en la Nube") con 25 asientos en dos secciones (A y B).
 
-## Ejecutar la aplicacion
+## Pasos para ejecutar la aplicacion
 
 ```bash
 npm start
