@@ -1,12 +1,20 @@
+// Esta es la parte MAS IMPORTANTE del proyecto: aqui vive el bloqueo
+// temporal de asientos (el "hold" con TTL) que es el motivo por el que
+// elegi Redis en vez de SQL. Todo lo demas del proyecto gira alrededor
+// de este archivo.
 const express = require('express');
 const router = express.Router({ mergeParams: true });
 const { client } = require('../config/redisClient');
 
+// Cuantos segundos dura un bloqueo antes de liberarse solo (default 5 min).
+// Se puede cambiar desde el .env sin tocar el codigo.
 const HOLD_TTL_SECONDS = parseInt(process.env.HOLD_TTL_SECONDS || '300', 10);
 
 const seatKey = (eventId, seatId) => `seat:${eventId}:${seatId}`;
 const holdKey = (eventId, seatId) => `hold:${eventId}:${seatId}`;
 
+// SEED: crea de golpe todos los asientos de un evento, organizados por
+// secciones y filas (ej. seccion A, fila 1, asiento 1 => "A1-1").
 router.post('/:eventId/seats/seed', async (req, res) => {
   const { eventId } = req.params;
   const { sections } = req.body;
@@ -20,7 +28,7 @@ router.post('/:eventId/seats/seed', async (req, res) => {
       for (let n = 1; n <= s.seatsPerRow; n++) {
         const seatId = `${s.section}${r}-${n}`;
         multi.hSet(seatKey(eventId, seatId), { status: 'available', section: s.section, row: String(r) });
-        multi.sAdd(`event:${eventId}:seats`, seatId);
+        multi.sAdd(`event:${eventId}:seats`, seatId); // lo agrego tambien al Set del evento
         count++;
       }
     }
@@ -29,6 +37,7 @@ router.post('/:eventId/seats/seed', async (req, res) => {
   res.status(201).json({ seatsCreated: count });
 });
 
+// READ (todos): lista los asientos y su estado actual.
 router.get('/:eventId/seats', async (req, res) => {
   const { eventId } = req.params;
   const seatIds = await client.sMembers(`event:${eventId}:seats`);
@@ -38,6 +47,8 @@ router.get('/:eventId/seats', async (req, res) => {
   res.json(seats);
 });
 
+// READ (uno): ademas del estado, regresa cuanto TTL le queda al hold (si
+// esta bloqueado). Si holdTtlSeconds sale null es porque no hay bloqueo activo.
 router.get('/:eventId/seats/:seatId', async (req, res) => {
   const { eventId, seatId } = req.params;
   const data = await client.hGetAll(seatKey(eventId, seatId));
@@ -46,6 +57,12 @@ router.get('/:eventId/seats/:seatId', async (req, res) => {
   res.json({ seatId, ...data, holdTtlSeconds: ttl > 0 ? ttl : null });
 });
 
+// HOLD: aqui esta el truco principal del proyecto. "SET ... NX EX" crea
+// el bloqueo y su expiracion EN UNA SOLA OPERACION ATOMICA:
+//   - NX = "solo si esta llave no existe todavia" (evita que dos clientes
+//     se queden con el mismo asiento al mismo tiempo)
+//   - EX = "borrate solo despues de X segundos" (el TTL, lo maneja Redis,
+//     no mi codigo)
 router.post('/:eventId/seats/:seatId/hold', async (req, res) => {
   const { eventId, seatId } = req.params;
   const { customerId } = req.body;
@@ -62,6 +79,9 @@ router.post('/:eventId/seats/:seatId/hold', async (req, res) => {
   res.json({ seatId, status: 'held', expiresInSeconds: HOLD_TTL_SECONDS });
 });
 
+// CONFIRM: convierte el bloqueo temporal en una reservacion permanente
+// (sin TTL). Valida que el hold siga vivo y que sea del mismo cliente
+// que esta confirmando (si no, alguien mas podria "robarse" el asiento).
 router.post('/:eventId/seats/:seatId/confirm', async (req, res) => {
   const { eventId, seatId } = req.params;
   const { customerId } = req.body;
@@ -75,11 +95,12 @@ router.post('/:eventId/seats/:seatId/confirm', async (req, res) => {
     eventId, seatId, customerId, status: 'confirmed', createdAt: new Date().toISOString(),
   });
   await client.hSet(seatKey(eventId, seatId), { status: 'booked' });
-  await client.del(holdKey(eventId, seatId));
+  await client.del(holdKey(eventId, seatId)); // ya no hace falta el hold temporal
 
   res.status(201).json({ bookingId, seatId, status: 'confirmed' });
 });
 
+// RELEASE: libera un hold a mano (sin esperar a que expire el TTL solo).
 router.post('/:eventId/seats/:seatId/release', async (req, res) => {
   const { eventId, seatId } = req.params;
   await client.del(holdKey(eventId, seatId));
@@ -87,6 +108,8 @@ router.post('/:eventId/seats/:seatId/release', async (req, res) => {
   res.json({ seatId, status: 'available' });
 });
 
+// WAITLIST (agregar): uso un Sorted Set para que Redis ordene solo la
+// lista de espera por momento de llegada (score = timestamp).
 router.post('/:eventId/waitlist', async (req, res) => {
   const { eventId } = req.params;
   const { customerId } = req.body;
@@ -94,6 +117,7 @@ router.post('/:eventId/waitlist', async (req, res) => {
   res.status(201).json({ eventId, customerId, added: true });
 });
 
+// WAITLIST (ver): la trae ya ordenada por quien llego primero.
 router.get('/:eventId/waitlist', async (req, res) => {
   const { eventId } = req.params;
   const list = await client.zRangeWithScores(`waitlist:${eventId}`, 0, -1);
