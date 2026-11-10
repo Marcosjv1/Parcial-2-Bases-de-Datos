@@ -30,7 +30,7 @@ async function seed() {
     for (let r = 1; r <= s.rows; r++) {
       for (let n = 1; n <= s.seatsPerRow; n++) {
         const seatId = `${s.section}${r}-${n}`;
-        multi.hSet(`seat:${eventId}:${seatId}`, { status: 'available', section: s.section, row: String(r) });
+        multi.hSet(`seat:${eventId}:${seatId}`, { status: 'disponible', section: s.section, row: String(r) });
         multi.sAdd(`event:${eventId}:seats`, seatId);
       }
     }

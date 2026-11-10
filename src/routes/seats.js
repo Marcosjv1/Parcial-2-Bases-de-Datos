@@ -27,7 +27,7 @@ router.post('/:eventId/seats/seed', async (req, res) => {
     for (let r = 1; r <= s.rows; r++) {
       for (let n = 1; n <= s.seatsPerRow; n++) {
         const seatId = `${s.section}${r}-${n}`;
-        multi.hSet(seatKey(eventId, seatId), { status: 'available', section: s.section, row: String(r) });
+        multi.hSet(seatKey(eventId, seatId), { status: 'disponible', section: s.section, row: String(r) });
         multi.sAdd(`event:${eventId}:seats`, seatId); // lo agrego tambien al Set del evento
         count++;
       }
@@ -70,13 +70,13 @@ router.post('/:eventId/seats/:seatId/hold', async (req, res) => {
 
   const seat = await client.hGetAll(seatKey(eventId, seatId));
   if (Object.keys(seat).length === 0) return res.status(404).json({ error: 'Seat not found' });
-  if (seat.status !== 'available') return res.status(409).json({ error: `Seat is ${seat.status}` });
+  if (seat.status !== 'disponible') return res.status(409).json({ error: `Seat is ${seat.status}` });
 
   const acquired = await client.set(holdKey(eventId, seatId), customerId, { NX: true, EX: HOLD_TTL_SECONDS });
   if (!acquired) return res.status(409).json({ error: 'Seat is already held by someone else' });
 
-  await client.hSet(seatKey(eventId, seatId), { status: 'held' });
-  res.json({ seatId, status: 'held', expiresInSeconds: HOLD_TTL_SECONDS });
+  await client.hSet(seatKey(eventId, seatId), { status: 'bloqueado' });
+  res.json({ seatId, status: 'bloqueado', expiresInSeconds: HOLD_TTL_SECONDS });
 });
 
 // CONFIRM: convierte el bloqueo temporal en una reservacion permanente
@@ -94,7 +94,7 @@ router.post('/:eventId/seats/:seatId/confirm', async (req, res) => {
   await client.hSet(`booking:${bookingId}`, {
     eventId, seatId, customerId, status: 'confirmed', createdAt: new Date().toISOString(),
   });
-  await client.hSet(seatKey(eventId, seatId), { status: 'booked' });
+  await client.hSet(seatKey(eventId, seatId), { status: 'reservado' });
   await client.del(holdKey(eventId, seatId)); // ya no hace falta el hold temporal
 
   res.status(201).json({ bookingId, seatId, status: 'confirmed' });
@@ -104,8 +104,8 @@ router.post('/:eventId/seats/:seatId/confirm', async (req, res) => {
 router.post('/:eventId/seats/:seatId/release', async (req, res) => {
   const { eventId, seatId } = req.params;
   await client.del(holdKey(eventId, seatId));
-  await client.hSet(seatKey(eventId, seatId), { status: 'available' });
-  res.json({ seatId, status: 'available' });
+  await client.hSet(seatKey(eventId, seatId), { status: 'disponible' });
+  res.json({ seatId, status: 'disponible' });
 });
 
 // WAITLIST (agregar): uso un Sorted Set para que Redis ordene solo la

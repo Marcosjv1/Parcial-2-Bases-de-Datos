@@ -57,7 +57,7 @@ En un modelo Clave-Valor (Redis):
 |---|---|---|
 | `event:{eventId}` | Hash | name, venue, date, price |
 | `event:{eventId}:seats` | Set | ids de todos los asientos del evento |
-| `seat:{eventId}:{seatId}` | Hash | status (available/held/booked), section, row |
+| `seat:{eventId}:{seatId}` | Hash | status (disponible/bloqueado/reservado), section, row |
 | `hold:{eventId}:{seatId}` | String + TTL | customerId que sostiene el bloqueo temporal |
 | `booking:{bookingId}` | Hash | eventId, seatId, customerId, status, createdAt |
 | `waitlist:{eventId}` | Sorted Set | customerId, score = timestamp de solicitud |
