@@ -70,3 +70,9 @@ curl http://localhost:3000/events/evt-001/seats
 ## Diseno de datos (resumen)
 
 Ver `DESIGN.md` para el documento completo de justificacion, arquitectura y catalogo de consultas.
+
+## Frontend basico (opcional, solo para la demo)
+
+Con el servidor corriendo (`npm start`), abre `http://localhost:3000/app` en el navegador para
+una pagina simple con botones (ver asientos, bloquear, confirmar, liberar) que usa la misma API
+de arriba. No es parte de la rubrica, es nomas un apoyo visual para la exposicion en vivo.

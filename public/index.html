@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Parcial 2 - Boletos (Redis)</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 900px; margin: 30px auto; padding: 0 16px; background: #f4f6f8; }
+  h1 { color: #0f3460; font-size: 22px; }
+  p.sub { color: #555; margin-top: -8px; }
+  .panel { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  label { font-size: 13px; color: #333; margin-right: 4px; }
+  input { padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; margin-right: 12px; width: 110px; }
+  button { padding: 8px 14px; margin: 4px 6px 4px 0; border: none; border-radius: 5px; background: #0f3460;
+           color: white; cursor: pointer; font-size: 13px; }
+  button:hover { background: #16213e; }
+  button.secondary { background: #6c757d; }
+  #seatsGrid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .seat { width: 56px; height: 44px; border-radius: 5px; display: flex; align-items: center; justify-content: center;
+          font-size: 11px; font-weight: bold; color: white; cursor: pointer; border: 2px solid transparent; }
+  .seat.disponible { background: #2e7d32; }
+  .seat.bloqueado { background: #f9a825; color: #333; }
+  .seat.reservado { background: #c62828; }
+  .seat.selected { border-color: #000; }
+  #log { background: #1a1a2e; color: #d6e8ff; font-family: Consolas, monospace; font-size: 12px;
+         padding: 10px; border-radius: 6px; max-height: 220px; overflow-y: auto; white-space: pre-wrap; }
+  .legend span { display: inline-flex; align-items: center; margin-right: 14px; font-size: 12px; }
+  .legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; margin-right: 4px; }
+</style>
+</head>
+<body>
+
+<h1>Sistema de Reservacion de Boletos</h1>
+<p class="sub">Parcial 2 &mdash; Redis Cloud (Clave-Valor). Frontend basico para la demo en vivo.</p>
+
+<div class="panel">
+  <label>ID del evento:</label>
+  <input id="eventId" value="evt-001">
+  <label>ID del cliente:</label>
+  <input id="customerId" value="cust-123">
+  <br><br>
+  <button onclick="verAsientos()">Ver asientos</button>
+</div>
+
+<div class="panel">
+  <p><b>Asiento seleccionado:</b> <span id="selectedSeat">ninguno (dale clic a un asiento de abajo)</span></p>
+  <button onclick="bloquear()">Bloquear</button>
+  <button onclick="confirmar()">Confirmar</button>
+  <button class="secondary" onclick="liberar()">Liberar</button>
+
+  <div class="legend" style="margin-top:10px;">
+    <span><i style="background:#2e7d32"></i> disponible</span>
+    <span><i style="background:#f9a825"></i> bloqueado</span>
+    <span><i style="background:#c62828"></i> reservado</span>
+  </div>
+
+  <div id="seatsGrid"></div>
+</div>
+
+<div class="panel">
+  <p><b>Respuesta de la API (lo que de verdad regresa Redis):</b></p>
+  <div id="log">Dale clic a "Ver asientos" para empezar...</div>
+</div>
+
+<script>
+  let selected = null;
+
+  function eventId() { return document.getElementById('eventId').value.trim(); }
+  function customerId() { return document.getElementById('customerId').value.trim(); }
+
+  function log(titulo, data) {
+    const el = document.getElementById('log');
+    el.textContent = `>> ${titulo}\n` + JSON.stringify(data, null, 2) + '\n\n' + el.textContent;
+  }
+
+  async function api(path, method = 'GET', body = null) {
+    const opts = { method, headers: {} };
+    if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+    const res = await fetch(path, opts);
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok, status: res.status, data };
+  }
+
+  async function verAsientos() {
+    const { data } = await api(`/events/${eventId()}/seats`);
+    log('GET /events/' + eventId() + '/seats', data);
+    renderSeats(data);
+  }
+
+  function renderSeats(seats) {
+    const grid = document.getElementById('seatsGrid');
+    grid.innerHTML = '';
+    if (!Array.isArray(seats)) return;
+    seats.sort((a, b) => a.seatId.localeCompare(b.seatId));
+    seats.forEach((s) => {
+      const div = document.createElement('div');
+      div.className = 'seat ' + (s.status || 'disponible') + (selected === s.seatId ? ' selected' : '');
+      div.textContent = s.seatId;
+      div.onclick = () => {
+        selected = s.seatId;
+        document.getElementById('selectedSeat').textContent = selected;
+        renderSeats(seats);
+      };
+      grid.appendChild(div);
+    });
+  }
+
+  async function bloquear() {
+    if (!selected) return alert('Primero dale clic a un asiento.');
+    const { data } = await api(`/events/${eventId()}/seats/${selected}/hold`, 'POST', { customerId: customerId() });
+    log('POST hold ' + selected, data);
+    verAsientos();
+  }
+
+  async function confirmar() {
+    if (!selected) return alert('Primero dale clic a un asiento.');
+    const { data } = await api(`/events/${eventId()}/seats/${selected}/confirm`, 'POST', { customerId: customerId() });
+    log('POST confirm ' + selected, data);
+    verAsientos();
+  }
+
+  async function liberar() {
+    if (!selected) return alert('Primero dale clic a un asiento.');
+    const { data } = await api(`/events/${eventId()}/seats/${selected}/release`, 'POST');
+    log('POST release ' + selected, data);
+    verAsientos();
+  }
+</script>
+
+</body>
+</html>

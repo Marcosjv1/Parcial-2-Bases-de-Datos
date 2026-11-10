@@ -2,6 +2,7 @@
 // las rutas (events, seats, bookings) y se levanta el servidor solo
 // despues de confirmar la conexion a Redis Cloud.
 require('dotenv').config(); // carga las variables del archivo .env (REDIS_URL, PORT, etc.)
+const path = require('path');
 const express = require('express');
 const { connectRedis } = require('./src/config/redisClient');
 const eventsRouter = require('./src/routes/events');
@@ -16,6 +17,11 @@ app.use(express.json()); // para poder leer el "body" JSON de las peticiones POS
 app.use('/events', eventsRouter);
 app.use('/events', seatsRouter);
 app.use('/bookings', bookingsRouter);
+
+// Frontend muy basico (solo para la demo en vivo): una pagina HTML con botones
+// que le pega a esta misma API. No es parte de la rubrica, es nomas un apoyo
+// visual. Vive en /app/ para no chocar con la ruta "/" de abajo.
+app.use('/app', express.static(path.join(__dirname, 'public')));
 
 app.get('/', (req, res) => res.json({ status: 'ok', service: 'ticketing-nosql' }));
 
