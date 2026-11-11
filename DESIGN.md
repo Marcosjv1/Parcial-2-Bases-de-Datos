@@ -88,12 +88,3 @@ await client.zAdd(`waitlist:${eventId}`, { score: Date.now(), value: customerId 
 // Leer lista de espera en orden de llegada
 await client.zRangeWithScores(`waitlist:${eventId}`, 0, -1);
 ```
-
-### 6. Pendientes antes del examen
-
-- [ ] Crear la cuenta/instancia real en Redis Cloud y pegar la REDIS_URL en `.env`.
-- [ ] Ejecutar `npm run seed` contra la instancia en la nube (no localhost) antes de la demo.
-- [ ] Insertar el diagrama de bloques de la seccion 3 como imagen en el PDF final.
-- [ ] Practicar explicar, sin leer: por que NX+EX resuelve condiciones de carrera que SQL no resuelve
-      de forma nativa, y que pasa si el servidor Express se cae mientras un hold esta activo (Redis
-      lo sigue expirando solo porque el TTL vive en el propio motor, no en el backend).
