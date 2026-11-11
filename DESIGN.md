@@ -1,8 +1,6 @@
 # Documento de Diseno y Justificacion
 ## Sistema de Reservacion de Boletos con Bloqueo Temporal de Asientos
 
-> Borrador de contenido para el PDF requerido por la rubrica. Convertir a PDF una vez revisado/ajustado.
-
 ### 1. Introduccion y Dominio del Problema
 
 Caso de uso: venta de boletos para eventos en vivo (conciertos, teatro, deportes), donde multiples
